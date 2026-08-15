@@ -1,0 +1,1120 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Sunrise,
+  Anchor,
+  CalendarDays,
+  Wind,
+  LifeBuoy,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Play,
+  Square,
+  Search,
+  Sparkles,
+} from "lucide-react";
+
+const MOODS = [
+  { key: "tough", label: "Really tough", color: "#FF9166", level: 1 },
+  { key: "low", label: "Low", color: "#FFC857", level: 2 },
+  { key: "okay", label: "Okay", color: "#B8A6FF", level: 3 },
+  { key: "good", label: "Good", color: "#4FD1C5", level: 4 },
+  { key: "great", label: "Great", color: "#7CE3B0", level: 5 },
+];
+
+const CATEGORY_COLOR = {
+  "Cognitive (CBT)": "#FF7A6B",
+  "Mindfulness & DBT": "#4FD1C5",
+  "Self-care": "#FFC857",
+};
+
+const MILESTONES = [3, 7, 14, 30, 60, 100];
+
+const TECHNIQUES = [
+  {
+    category: "Cognitive (CBT)",
+    items: [
+      {
+        title: "Reframe a thought",
+        summary: "A short thought record for catching and testing an unhelpful thought.",
+        source: "Beck, 1979 — Cognitive Therapy of Depression",
+        steps: [
+          "Write the exact thought that's bothering you, in quotes.",
+          "Name the feeling it brings up and rate it 0–10.",
+          "List the evidence that supports the thought.",
+          "List the evidence against it — be as thorough as you were above.",
+          "Write one more balanced thought that fits the evidence.",
+          "Re-rate the feeling. Notice any shift, even a small one.",
+        ],
+      },
+      {
+        title: "Behavioral activation",
+        summary: "Do a small meaningful thing before you feel ready — motivation follows action.",
+        source: "Jacobson et al., 1996 — Component Analysis of BA",
+        steps: [
+          "Pick one activity you used to enjoy, or that matters to you.",
+          "Shrink it until it takes under 10 minutes.",
+          "Put a specific time on it today.",
+          "Do it without waiting to feel like it.",
+          "Notice how you feel afterward, not before — that's the data that counts.",
+        ],
+      },
+      {
+        title: "Worry postponement",
+        summary: "Contain worry to one window instead of letting it run all day.",
+        source: "Borkovec et al., 1983 — Stimulus Control for Worry",
+        steps: [
+          "When a worry shows up, jot it in one line on a list.",
+          "Tell yourself: not now, at worry time.",
+          "Set a daily 10-minute worry window, same time each day.",
+          "At that time, go through the list and actually think it through.",
+          "Close the notebook when the 10 minutes are up.",
+        ],
+      },
+      {
+        title: "Behavioral experiment",
+        summary: "Test a feared prediction in real life instead of arguing with it in your head.",
+        source: "Beck, 1979 — Cognitive Therapy of Depression",
+        steps: [
+          "Write the specific prediction you're afraid of ('If I go, everyone will notice I'm anxious').",
+          "Rate how strongly you believe it, 0–100%.",
+          "Design a small, safe way to test it.",
+          "Run the experiment and record what actually happened.",
+          "Compare the outcome to the prediction and re-rate your belief.",
+        ],
+      },
+    ],
+  },
+  {
+    category: "Mindfulness & DBT",
+    items: [
+      {
+        title: "5-4-3-2-1 grounding",
+        summary: "Pull attention back into the room through your senses.",
+        source: "Common grounding protocol, DBT skills tradition",
+        steps: [
+          "Name 5 things you can see.",
+          "Name 4 things you can touch.",
+          "Name 3 things you can hear.",
+          "Name 2 things you can smell.",
+          "Name 1 thing you can taste.",
+        ],
+      },
+      {
+        title: "Box breathing",
+        summary: "A steady four-part breath used to calm the nervous system quickly.",
+        source: "Diaphragmatic breathing research, physiological calming",
+        steps: [
+          "Inhale slowly for 4 counts.",
+          "Hold for 4 counts.",
+          "Exhale slowly for 4 counts.",
+          "Hold empty for 4 counts.",
+          "Repeat for 4–8 rounds. There's a guided version in Unwind.",
+        ],
+      },
+      {
+        title: "TIPP (crisis skill)",
+        summary: "For moments of intense distress — changes body chemistry fast.",
+        source: "Linehan, 1993 — DBT Skills Training Manual",
+        steps: [
+          "Temperature: hold cold water or ice against your face for 15–30 seconds.",
+          "Intense exercise: 1–2 minutes of jumping jacks or running in place.",
+          "Paced breathing: exhale longer than you inhale.",
+          "Paired muscle relaxation: tense a muscle group for 5 seconds, then release.",
+        ],
+      },
+      {
+        title: "Body scan",
+        summary: "A slow pass through the body to notice and release tension.",
+        source: "Kabat-Zinn, 1990 — Full Catastrophe Living",
+        steps: [
+          "Sit or lie down somewhere comfortable.",
+          "Bring attention to your feet — just notice, don't change anything.",
+          "Move attention slowly upward: legs, torso, arms, shoulders, face.",
+          "Where you find tension, breathe into it and let it soften.",
+          "Finish by noticing how the whole body feels, as one piece.",
+        ],
+      },
+      {
+        title: "Progressive muscle relaxation",
+        summary: "Tense-and-release cycles that teach your body what 'let go' feels like.",
+        source: "Jacobson, 1938 — Progressive Relaxation",
+        steps: [
+          "Start at your feet. Tense the muscles hard for 5 seconds.",
+          "Release suddenly and notice the contrast.",
+          "Move upward: calves, thighs, stomach, hands, arms, shoulders, face.",
+          "Breathe naturally between each muscle group.",
+          "Finish with the whole body relaxed for 30 seconds.",
+        ],
+      },
+    ],
+  },
+  {
+    category: "Self-care",
+    items: [
+      {
+        title: "Sleep wind-down",
+        summary: "A short checklist for a body that has trouble settling at night.",
+        source: "CBT-I sleep hygiene guidelines",
+        steps: [
+          "Screens off 30 minutes before bed if you can manage it.",
+          "Dim the lights in the last hour.",
+          "Write down anything on your mind so it isn't held in your head.",
+          "Keep the room cool and dark.",
+          "If you're not asleep in 20 minutes, get up and do something quiet, then try again.",
+        ],
+      },
+      {
+        title: "Movement snack",
+        summary: "A short burst of movement — no workout plan required.",
+        source: "Exercise & mood research, general consensus",
+        steps: [
+          "Stand up from where you are right now.",
+          "Walk for 5 minutes, outside if possible.",
+          "Let your arms swing, unclench your jaw.",
+          "No pace goal — just moving counts.",
+        ],
+      },
+      {
+        title: "One honest connection",
+        summary: "Isolation feeds most of these conditions — this counters it directly.",
+        source: "Social support & depression literature",
+        steps: [
+          "Think of one person you trust, even a little.",
+          "Send one honest sentence about how you're actually doing.",
+          "You don't need a plan for their reply — sending it is the win.",
+        ],
+      },
+      {
+        title: "Gratitude practice",
+        summary: "Briefly noting what went right nudges attention away from threat-scanning.",
+        source: "Emmons & McCullough, 2003 — Counting Blessings",
+        steps: [
+          "Write down 3 specific things from today, big or small.",
+          "For each, add one line on why it mattered.",
+          "Read them back once before you close the notebook.",
+        ],
+      },
+      {
+        title: "Self-compassion break",
+        summary: "Speak to yourself the way you'd speak to someone you love.",
+        source: "Neff, 2003 — Self-Compassion",
+        steps: [
+          "Name what's hard: 'This is a moment of struggle.'",
+          "Normalize it: 'Struggling is part of being human.'",
+          "Offer yourself kindness: 'May I be kind to myself right now.'",
+        ],
+      },
+    ],
+  },
+];
+
+function pad(n) {
+  return n < 10 ? "0" + n : "" + n;
+}
+function dateKey(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function moodInfo(key) {
+  return MOODS.find((m) => m.key === key);
+}
+function allTechniqueItems() {
+  return TECHNIQUES.flatMap((cat) =>
+    cat.items.map((item) => ({ ...item, category: cat.category }))
+  );
+}
+
+export default function Harbor() {
+  const [tab, setTab] = useState("today");
+  const [navOpen, setNavOpen] = useState(false);
+  const [moodLog, setMoodLog] = useState({});
+  const [loaded, setLoaded] = useState(false);
+  const [storageError, setStorageError] = useState(false);
+  const [burst, setBurst] = useState(false);
+  const prevStreakRef = useRef(0);
+
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+
+  const [expandedTech, setExpandedTech] = useState(null);
+  const [techQuery, setTechQuery] = useState("");
+  const [techFilter, setTechFilter] = useState("All");
+  const [showCrisis, setShowCrisis] = useState(false);
+
+  const today = new Date();
+  const todayKey = dateKey(today);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.storage.get("moodlog", false);
+        if (res && res.value) setMoodLog(JSON.parse(res.value));
+      } catch (e) {
+        /* no entry yet */
+      }
+      setLoaded(true);
+    })();
+  }, []);
+
+  function computeStreak(log) {
+    let streak = 0;
+    let cursor = new Date();
+    while (log[dateKey(cursor)]) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  const saveMood = useCallback(
+    async (key, mood, note) => {
+      const updated = { ...moodLog, [key]: { mood, note: note || "" } };
+      setMoodLog(updated);
+      const newStreak = computeStreak(updated);
+      if (MILESTONES.includes(newStreak) && newStreak !== prevStreakRef.current) {
+        setBurst(true);
+        setTimeout(() => setBurst(false), 1400);
+      }
+      prevStreakRef.current = newStreak;
+      try {
+        const result = await window.storage.set("moodlog", JSON.stringify(updated), false);
+        if (!result) setStorageError(true);
+      } catch (e) {
+        setStorageError(true);
+      }
+    },
+    [moodLog]
+  );
+
+  const streak = computeStreak(moodLog);
+
+  const navItems = [
+    { key: "today", label: "Today", icon: Sunrise, color: "#FFC857" },
+    { key: "techniques", label: "Techniques", icon: Anchor, color: "#FF7A6B" },
+    { key: "tracker", label: "Tracker", icon: CalendarDays, color: "#4FD1C5" },
+    { key: "unwind", label: "Unwind", icon: Wind, color: "#B8A6FF" },
+  ];
+
+  return (
+    <div className="harbor-root">
+      <FontStyles />
+      {burst && <ConfettiBurst />}
+      <div className="shell">
+        <aside className={`sidebar ${navOpen ? "open" : ""}`}>
+          <div className="brand">
+            <span className="brand-ring" aria-hidden="true" />
+            <span className="brand-name">Harbor</span>
+          </div>
+          <nav className="navlist" aria-label="Sections">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = tab === item.key;
+              return (
+                <button
+                  key={item.key}
+                  className={`navitem ${active ? "active" : ""}`}
+                  style={{ "--nav-color": item.color }}
+                  onClick={() => {
+                    setTab(item.key);
+                    setNavOpen(false);
+                  }}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon size={18} strokeWidth={1.75} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <button className="crisis-toggle" onClick={() => setShowCrisis(true)}>
+            <LifeBuoy size={16} strokeWidth={1.75} />
+            <span>Need support now?</span>
+          </button>
+        </aside>
+
+        <button className="mobile-nav-toggle" onClick={() => setNavOpen((v) => !v)} aria-label="Toggle navigation">
+          {navOpen ? <X size={20} /> : <Sunrise size={20} />}
+          <span>{navItems.find((n) => n.key === tab)?.label}</span>
+        </button>
+
+        <main className="content">
+          {tab === "today" && (
+            <TodayView streak={streak} todayKey={todayKey} moodLog={moodLog} onLogMood={saveMood} goTo={setTab} />
+          )}
+          {tab === "techniques" && (
+            <TechniquesView
+              expandedTech={expandedTech}
+              setExpandedTech={setExpandedTech}
+              query={techQuery}
+              setQuery={setTechQuery}
+              filter={techFilter}
+              setFilter={setTechFilter}
+            />
+          )}
+          {tab === "tracker" && (
+            <TrackerView
+              loaded={loaded}
+              moodLog={moodLog}
+              monthOffset={monthOffset}
+              setMonthOffset={setMonthOffset}
+              selectedDay={selectedDay}
+              setSelectedDay={setSelectedDay}
+              noteDraft={noteDraft}
+              setNoteDraft={setNoteDraft}
+              onLogMood={saveMood}
+              streak={streak}
+              storageError={storageError}
+            />
+          )}
+          {tab === "unwind" && <UnwindView />}
+        </main>
+      </div>
+
+      {showCrisis && <CrisisPanel onClose={() => setShowCrisis(false)} />}
+    </div>
+  );
+}
+
+function ConfettiBurst() {
+  const colors = ["#FF7A6B", "#4FD1C5", "#FFC857", "#B8A6FF", "#7CE3B0"];
+  const particles = Array.from({ length: 18 }).map((_, i) => {
+    const angle = (i / 18) * Math.PI * 2;
+    const dist = 90 + Math.random() * 70;
+    return {
+      id: i,
+      x: Math.cos(angle) * dist,
+      y: Math.sin(angle) * dist,
+      color: colors[i % colors.length],
+      delay: Math.random() * 0.15,
+    };
+  });
+  return (
+    <div className="confetti-layer" aria-hidden="true">
+      {particles.map((p) => (
+        <span
+          key={p.id}
+          className="confetti-piece"
+          style={{
+            "--dx": `${p.x}px`,
+            "--dy": `${p.y}px`,
+            background: p.color,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TodayView({ streak, todayKey, moodLog, onLogMood, goTo }) {
+  const loggedToday = moodLog[todayKey];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  const dayIndex = Math.floor(Date.now() / 86400000);
+  const allItems = allTechniqueItems();
+  const dailyPick = allItems[dayIndex % allItems.length];
+
+  return (
+    <div className="view today-view">
+      <section className="hero">
+        <div className="hero-blobs" aria-hidden="true">
+          <span className="blob blob-1" />
+          <span className="blob blob-2" />
+          <span className="blob blob-3" />
+        </div>
+        <div className="breathing-ring" aria-hidden="true">
+          <span className="ring ring-1" />
+          <span className="ring ring-2" />
+          <span className="ring ring-3" />
+        </div>
+        <h1>{greeting}.</h1>
+        <p className="hero-sub">One small, evidence-based thing today is enough. This is a quiet place to find it.</p>
+      </section>
+
+      <section className="card checkin-card">
+        <h2>How are you, right now?</h2>
+        {loggedToday ? (
+          <p className="checkin-done">
+            Logged as{" "}
+            <strong style={{ color: moodInfo(loggedToday.mood)?.color }}>{moodInfo(loggedToday.mood)?.label}</strong>{" "}
+            today. You can change it any time from the Tracker.
+          </p>
+        ) : (
+          <div className="mood-row">
+            {MOODS.map((m) => (
+              <button
+                key={m.key}
+                className="mood-btn"
+                style={{ "--mood-color": m.color }}
+                onClick={() => onLogMood(todayKey, m.key, "")}
+              >
+                <span className="mood-dot" />
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="card daily-pick" style={{ "--accent": CATEGORY_COLOR[dailyPick.category] }}>
+        <span className="daily-pick-tag">
+          <Sparkles size={14} strokeWidth={2} /> Today's pick
+        </span>
+        <h3>{dailyPick.title}</h3>
+        <p>{dailyPick.summary}</p>
+        <button className="btn-ghost" onClick={() => goTo("techniques")}>
+          See the steps
+        </button>
+      </section>
+
+      <section className="today-grid">
+        <button className="quick-card" style={{ "--accent": "#FF7A6B" }} onClick={() => goTo("techniques")}>
+          <Anchor size={20} strokeWidth={1.75} />
+          <div>
+            <h3>Find a technique</h3>
+            <p>CBT, mindfulness &amp; DBT, and self-care, in plain steps.</p>
+          </div>
+        </button>
+        <button className="quick-card" style={{ "--accent": "#B8A6FF" }} onClick={() => goTo("unwind")}>
+          <Wind size={20} strokeWidth={1.75} />
+          <div>
+            <h3>Guided breathing &amp; games</h3>
+            <p>Paced breathing, a ripple pool, and bubble pop.</p>
+          </div>
+        </button>
+        <div className="quick-card streak-card" style={{ "--accent": "#4FD1C5" }}>
+          <CalendarDays size={20} strokeWidth={1.75} />
+          <div>
+            <h3>{streak > 0 ? `${streak}-day streak` : "Start a streak"}</h3>
+            <p>{streak > 0 ? "Consecutive days you've checked in." : "Log today to begin one."}</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function TechniquesView({ expandedTech, setExpandedTech, query, setQuery, filter, setFilter }) {
+  const categories = ["All", ...TECHNIQUES.map((c) => c.category)];
+  const q = query.trim().toLowerCase();
+
+  return (
+    <div className="view">
+      <header className="view-header">
+        <h1>Techniques</h1>
+        <p>A working library of approaches drawn from CBT, mindfulness/DBT, and general self-care research.</p>
+      </header>
+
+      <div className="tech-controls">
+        <div className="search-box">
+          <Search size={16} strokeWidth={2} />
+          <input
+            type="text"
+            placeholder="Search techniques..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="filter-chips">
+          {categories.map((c) => (
+            <button
+              key={c}
+              className={`chip ${filter === c ? "active" : ""}`}
+              style={{ "--chip-color": CATEGORY_COLOR[c] || "#F5F1FF" }}
+              onClick={() => setFilter(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {TECHNIQUES.filter((cat) => filter === "All" || filter === cat.category).map((cat) => {
+        const visibleItems = cat.items.filter(
+          (item) =>
+            !q || item.title.toLowerCase().includes(q) || item.summary.toLowerCase().includes(q)
+        );
+        if (visibleItems.length === 0) return null;
+        return (
+          <section key={cat.category} className="tech-section">
+            <h2 className="tech-category" style={{ color: CATEGORY_COLOR[cat.category] }}>
+              {cat.category}
+            </h2>
+            <div className="tech-list">
+              {visibleItems.map((item) => {
+                const id = cat.category + "|" + item.title;
+                const open = expandedTech === id;
+                return (
+                  <div
+                    key={id}
+                    className={`tech-card ${open ? "open" : ""}`}
+                    style={{ "--accent": CATEGORY_COLOR[cat.category] }}
+                  >
+                    <button
+                      className="tech-card-head"
+                      onClick={() => setExpandedTech(open ? null : id)}
+                      aria-expanded={open}
+                    >
+                      <div>
+                        <h3>{item.title}</h3>
+                        <p>{item.summary}</p>
+                      </div>
+                      <ChevronDown className="chevron" size={18} strokeWidth={1.75} />
+                    </button>
+                    {open && (
+                      <>
+                        <ol className="tech-steps">
+                          {item.steps.map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ol>
+                        <p className="tech-source">Rooted in: {item.source}</p>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrackerView({
+  loaded,
+  moodLog,
+  monthOffset,
+  setMonthOffset,
+  selectedDay,
+  setSelectedDay,
+  noteDraft,
+  setNoteDraft,
+  onLogMood,
+  streak,
+  storageError,
+}) {
+  const base = new Date();
+  const viewDate = new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const monthName = viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const todayStr = dateKey(new Date());
+
+  function openDay(d) {
+    const dt = new Date(year, month, d);
+    const key = dateKey(dt);
+    setSelectedDay(key);
+    setNoteDraft(moodLog[key]?.note || "");
+  }
+
+  const loggedCount = Object.keys(moodLog).length;
+
+  const last7 = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const key = dateKey(d);
+    return { key, entry: moodLog[key], label: d.toLocaleDateString(undefined, { weekday: "narrow" }) };
+  });
+
+  return (
+    <div className="view">
+      <header className="view-header">
+        <h1>Tracker</h1>
+        <p>A quiet record, not a scoreboard. Missed days don't erase a streak's meaning.</p>
+      </header>
+
+      <section className="tracker-stats">
+        <div className="stat" style={{ "--accent": "#4FD1C5" }}>
+          <span className="stat-num">{streak}</span>
+          <span className="stat-label">day streak</span>
+        </div>
+        <div className="stat" style={{ "--accent": "#FFC857" }}>
+          <span className="stat-num">{loggedCount}</span>
+          <span className="stat-label">days logged</span>
+        </div>
+      </section>
+
+      <section className="card week-card">
+        <h2>Last 7 days</h2>
+        <div className="week-bars">
+          {last7.map((d) => (
+            <div key={d.key} className="week-bar-col">
+              <div className="week-bar-track">
+                <div
+                  className="week-bar-fill"
+                  style={{
+                    height: d.entry ? `${moodInfo(d.entry.mood).level * 20}%` : "4%",
+                    background: d.entry ? moodInfo(d.entry.mood).color : "var(--border)",
+                  }}
+                />
+              </div>
+              <span className="week-bar-label">{d.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="card badges-card">
+        <h2>Milestones</h2>
+        <div className="badge-row">
+          {MILESTONES.map((m) => (
+            <span key={m} className={`badge ${streak >= m ? "earned" : ""}`}>
+              {m}d
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {storageError && (
+        <p className="storage-warning">Entries aren't saving right now — they'll only last this session.</p>
+      )}
+
+      <section className="card calendar-card">
+        <div className="calendar-nav">
+          <button onClick={() => setMonthOffset((v) => v - 1)} aria-label="Previous month">
+            <ChevronLeft size={18} />
+          </button>
+          <span>{monthName}</span>
+          <button onClick={() => setMonthOffset((v) => v + 1)} aria-label="Next month">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        <div className="weekday-row">
+          {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+            <span key={i}>{d}</span>
+          ))}
+        </div>
+
+        <div className="day-grid">
+          {cells.map((d, i) => {
+            if (d === null) return <span key={i} className="day-cell empty" />;
+            const dt = new Date(year, month, d);
+            const key = dateKey(dt);
+            const entry = moodLog[key];
+            const isToday = key === todayStr;
+            return (
+              <button
+                key={i}
+                className={`day-cell ${isToday ? "is-today" : ""}`}
+                style={entry ? { background: moodInfo(entry.mood)?.color } : undefined}
+                onClick={() => openDay(d)}
+              >
+                {d}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="legend">
+          {MOODS.map((m) => (
+            <span key={m.key} className="legend-item">
+              <span className="legend-dot" style={{ background: m.color }} />
+              {m.label}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {selectedDay && (
+        <div className="day-panel-backdrop" onClick={() => setSelectedDay(null)}>
+          <div className="card day-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="day-panel-head">
+              <h3>
+                {new Date(selectedDay + "T00:00:00").toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </h3>
+              <button onClick={() => setSelectedDay(null)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="mood-row">
+              {MOODS.map((m) => {
+                const active = moodLog[selectedDay]?.mood === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    className={`mood-btn ${active ? "selected" : ""}`}
+                    style={{ "--mood-color": m.color }}
+                    onClick={() => onLogMood(selectedDay, m.key, noteDraft)}
+                  >
+                    <span className="mood-dot" />
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="note-label" htmlFor="day-note">
+              Note (optional)
+            </label>
+            <textarea
+              id="day-note"
+              className="note-input"
+              rows={3}
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onBlur={() => {
+                if (moodLog[selectedDay]) onLogMood(selectedDay, moodLog[selectedDay].mood, noteDraft);
+              }}
+              placeholder="What stood out about today?"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PHASES = [
+  { key: "inhale", label: "Breathe in", seconds: 4 },
+  { key: "hold1", label: "Hold", seconds: 4 },
+  { key: "exhale", label: "Breathe out", seconds: 4 },
+  { key: "hold2", label: "Hold", seconds: 4 },
+];
+
+function UnwindView() {
+  const [running, setRunning] = useState(false);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const [cycles, setCycles] = useState(0);
+  const runningRef = useRef(false);
+  const timeoutRef = useRef(null);
+
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  function startBreathing() {
+    setRunning(true);
+    runningRef.current = true;
+    setPhaseIdx(0);
+    setCycles(0);
+    step(0, 0);
+  }
+  function stopBreathing() {
+    setRunning(false);
+    runningRef.current = false;
+    clearTimeout(timeoutRef.current);
+    setPhaseIdx(0);
+  }
+  function step(idx, cycleCount) {
+    if (!runningRef.current) return;
+    setPhaseIdx(idx);
+    const phase = PHASES[idx];
+    timeoutRef.current = setTimeout(() => {
+      if (!runningRef.current) return;
+      const nextIdx = (idx + 1) % PHASES.length;
+      const nextCycle = nextIdx === 0 ? cycleCount + 1 : cycleCount;
+      if (nextIdx === 0) setCycles(nextCycle);
+      step(nextIdx, nextCycle);
+    }, phase.seconds * 1000);
+  }
+  const phase = PHASES[phaseIdx];
+
+  return (
+    <div className="view">
+      <header className="view-header">
+        <h1>Unwind</h1>
+        <p>No score, no goal to hit. Stay as long as it helps.</p>
+      </header>
+
+      <section className="card breathing-card">
+        <h2>Paced breathing</h2>
+        <div
+          className={`pacer ${running ? "running phase-" + phase.key : ""}`}
+          style={{ "--phase-seconds": `${phase.seconds}s` }}
+        >
+          <span className="pacer-label">{running ? phase.label : "Ready"}</span>
+        </div>
+        <div className="pacer-controls">
+          {!running ? (
+            <button className="btn-primary" onClick={startBreathing}>
+              <Play size={16} strokeWidth={2} /> Start
+            </button>
+          ) : (
+            <button className="btn-primary" onClick={stopBreathing}>
+              <Square size={16} strokeWidth={2} /> Stop
+            </button>
+          )}
+          {cycles > 0 && <span className="cycle-count">{cycles} round{cycles === 1 ? "" : "s"} complete</span>}
+        </div>
+      </section>
+
+      <section className="card ripple-card">
+        <h2>Ripple pool</h2>
+        <p className="ripple-hint">Tap or click anywhere in the pool.</p>
+        <RipplePool />
+      </section>
+
+      <section className="card bubble-card">
+        <h2>Bubble pop</h2>
+        <p className="ripple-hint">Pop the bubbles as they drift by — no rush, no score.</p>
+        <BubblePop />
+      </section>
+    </div>
+  );
+}
+
+function RipplePool() {
+  const [ripples, setRipples] = useState([]);
+  const poolRef = useRef(null);
+  const idRef = useRef(0);
+  const colors = ["#FF7A6B", "#4FD1C5", "#FFC857", "#B8A6FF", "#7CE3B0"];
+
+  function spawn(e) {
+    const rect = poolRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const id = idRef.current++;
+    const color = colors[id % colors.length];
+    setRipples((r) => [...r, { id, x, y, color }]);
+    setTimeout(() => setRipples((r) => r.filter((rp) => rp.id !== id)), 1600);
+  }
+
+  return (
+    <div ref={poolRef} className="ripple-pool" onMouseDown={spawn} onTouchStart={spawn}>
+      {ripples.map((r) => (
+        <span key={r.id} className="ripple" style={{ left: r.x, top: r.y, "--ripple-color": r.color }} />
+      ))}
+    </div>
+  );
+}
+
+function BubblePop() {
+  const [bubbles, setBubbles] = useState([]);
+  const poolRef = useRef(null);
+  const idRef = useRef(0);
+  const colors = ["#FF7A6B", "#4FD1C5", "#FFC857", "#B8A6FF", "#7CE3B0"];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBubbles((prev) => {
+        if (prev.length >= 7) return prev;
+        const id = idRef.current++;
+        const size = 30 + Math.random() * 40;
+        const left = 5 + Math.random() * 85;
+        const duration = 6 + Math.random() * 4;
+        const color = colors[id % colors.length];
+        return [...prev, { id, size, left, duration, color }];
+      });
+    }, 1400);
+    return () => clearInterval(interval);
+  }, []);
+
+  function pop(id) {
+    setBubbles((prev) => prev.filter((b) => b.id !== id));
+  }
+
+  function handleEnd(id) {
+    setBubbles((prev) => prev.filter((b) => b.id !== id));
+  }
+
+  return (
+    <div ref={poolRef} className="bubble-pool">
+      {bubbles.map((b) => (
+        <button
+          key={b.id}
+          className="bubble"
+          style={{
+            width: b.size,
+            height: b.size,
+            left: `${b.left}%`,
+            background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.55), ${b.color}55)`,
+            border: `1.5px solid ${b.color}`,
+            animationDuration: `${b.duration}s`,
+          }}
+          onClick={() => pop(b.id)}
+          onAnimationEnd={() => handleEnd(b.id)}
+          aria-label="Pop bubble"
+        />
+      ))}
+    </div>
+  );
+}
+
+function CrisisPanel({ onClose }) {
+  return (
+    <div className="day-panel-backdrop" onClick={onClose}>
+      <div className="card day-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="day-panel-head">
+          <h3>If things feel urgent</h3>
+          <button onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+        <p>
+          This app is a set of self-help tools, not a substitute for professional care or emergency
+          services. If you're in immediate danger, please contact your local emergency number.
+        </p>
+        <p>
+          If you're struggling but not in immediate danger, consider reaching out to a crisis line in
+          your country, a doctor, or someone you trust — you don't have to carry it alone.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FontStyles() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+      .harbor-root { --bg: #14102B; --surface: #1E1A3A; --surface-alt: #262148; --coral: #FF7A6B; --turquoise: #4FD1C5; --sunflower: #FFC857; --lavender: #B8A6FF; --text: #F5F1FF; --muted: #A79ED1; --border: rgba(255,255,255,0.10); background: var(--bg); color: var(--text); font-family: 'Source Sans 3', sans-serif; min-height: 100vh; width: 100%; position: relative; overflow-x: hidden; }
+      .harbor-root * { box-sizing: border-box; }
+      .harbor-root h1, .harbor-root h2, .harbor-root h3 { font-family: 'Fraunces', serif; font-weight: 500; margin: 0; letter-spacing: -0.01em; }
+      .harbor-root button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+      .harbor-root button:focus-visible, .harbor-root textarea:focus-visible, .harbor-root input:focus-visible { outline: 2px solid var(--turquoise); outline-offset: 2px; }
+      .shell { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+      .sidebar { width: 224px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 16px; display: flex; flex-direction: column; gap: 28px; }
+      .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+      .brand-ring { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(from 0deg, var(--coral), var(--sunflower), var(--turquoise), var(--lavender), var(--coral)); box-shadow: 0 0 0 3px rgba(255,255,255,0.06); }
+      .brand-name { font-family: 'Fraunces', serif; font-size: 20px; letter-spacing: 0.01em; }
+      .navlist { display: flex; flex-direction: column; gap: 4px; }
+      .navitem { --nav-color: var(--turquoise); display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; color: var(--muted); text-align: left; font-size: 14.5px; transition: background 0.15s, color 0.15s; }
+      .navitem:hover { background: var(--surface-alt); color: var(--text); }
+      .navitem.active { background: color-mix(in srgb, var(--nav-color) 18%, var(--surface-alt)); color: var(--nav-color); font-weight: 600; }
+      .crisis-toggle { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; color: var(--muted); font-size: 13px; border: 1px solid var(--border); }
+      .crisis-toggle:hover { color: var(--sunflower); border-color: var(--sunflower); }
+      .mobile-nav-toggle { display: none; }
+      .content { flex: 1; padding: 40px 44px 80px; max-width: 900px; }
+      .view { display: flex; flex-direction: column; gap: 28px; }
+      .view-header p { color: var(--muted); margin: 6px 0 0; max-width: 52ch; }
+      .view-header h1 { font-size: 28px; }
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 24px; }
+      .hero { padding: 12px 0 4px; position: relative; overflow: hidden; border-radius: 20px; }
+      .hero h1 { font-size: 34px; position: relative; }
+      .hero-sub { color: var(--muted); margin-top: 8px; max-width: 46ch; position: relative; }
+      .hero-blobs { position: absolute; inset: -40px; z-index: -1; filter: blur(50px); opacity: 0.45; }
+      .blob { position: absolute; border-radius: 50%; }
+      .blob-1 { width: 220px; height: 220px; background: var(--coral); top: -60px; left: 10%; animation: drift1 14s ease-in-out infinite; }
+      .blob-2 { width: 180px; height: 180px; background: var(--turquoise); top: 20px; left: 55%; animation: drift2 18s ease-in-out infinite; }
+      .blob-3 { width: 160px; height: 160px; background: var(--lavender); top: -20px; left: 80%; animation: drift3 16s ease-in-out infinite; }
+      @keyframes drift1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px, 20px); } }
+      @keyframes drift2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-25px, 25px); } }
+      @keyframes drift3 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-20px, -15px); } }
+      .breathing-ring { position: absolute; top: -6px; right: 6px; width: 90px; height: 90px; }
+      .breathing-ring .ring { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid var(--turquoise); opacity: 0.5; animation: ringPulse 6s ease-in-out infinite; }
+      .ring-2 { animation-delay: -2s; border-color: var(--lavender); }
+      .ring-3 { animation-delay: -4s; border-color: var(--coral); }
+      @keyframes ringPulse { 0%,100% { transform: scale(0.7); opacity: 0.15; } 50% { transform: scale(1); opacity: 0.55; } }
+      .checkin-card h2 { font-size: 18px; margin-bottom: 14px; }
+      .checkin-done { color: var(--muted); }
+      .mood-row { display: flex; flex-wrap: wrap; gap: 10px; }
+      .mood-btn { --mood-color: var(--turquoise); display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border); font-size: 13.5px; color: var(--text); transition: border-color 0.15s, background 0.15s, transform 0.1s; }
+      .mood-btn:hover { transform: translateY(-1px); }
+      .mood-btn:hover, .mood-btn.selected { border-color: var(--mood-color); background: color-mix(in srgb, var(--mood-color) 20%, transparent); }
+      .mood-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--mood-color); display: inline-block; }
+      .daily-pick { --accent: var(--sunflower); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+      .daily-pick-tag { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+      .daily-pick h3 { font-size: 18px; margin-bottom: 6px; }
+      .daily-pick p { color: var(--muted); margin: 0 0 14px; }
+      .btn-ghost { color: var(--accent); font-weight: 600; font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); padding: 8px 16px; border-radius: 999px; }
+      .btn-ghost:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+      .today-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+      .quick-card { --accent: var(--turquoise); display: flex; gap: 12px; align-items: flex-start; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; color: var(--accent); transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; }
+      .quick-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px -12px var(--accent); }
+      .quick-card h3 { color: var(--text); font-size: 15.5px; }
+      .quick-card p { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+      .streak-card { cursor: default; }
+      .streak-card:hover { transform: none; box-shadow: none; border-color: var(--border); }
+      .tech-controls { display: flex; flex-direction: column; gap: 12px; }
+      .search-box { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 10px 16px; color: var(--muted); }
+      .search-box input { flex: 1; background: none; border: none; color: var(--text); font-size: 14px; }
+      .search-box input::placeholder { color: var(--muted); }
+      .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chip { --chip-color: var(--turquoise); padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 13px; transition: all 0.15s; }
+      .chip:hover { color: var(--text); }
+      .chip.active { background: color-mix(in srgb, var(--chip-color) 22%, transparent); border-color: var(--chip-color); color: var(--chip-color); font-weight: 600; }
+      .tech-category { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; font-family: 'Source Sans 3', sans-serif; font-weight: 700; margin-bottom: 12px; }
+      .tech-list { display: flex; flex-direction: column; gap: 10px; }
+      .tech-card { --accent: var(--turquoise); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; transition: border-color 0.15s; }
+      .tech-card.open { border-color: var(--accent); }
+      .tech-card-head { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 20px; text-align: left; }
+      .tech-card-head h3 { font-size: 16px; }
+      .tech-card-head p { color: var(--muted); font-size: 13.5px; margin: 4px 0 0; }
+      .chevron { flex-shrink: 0; margin-top: 4px; transition: transform 0.2s; color: var(--muted); }
+      .tech-card.open .chevron { transform: rotate(180deg); color: var(--accent); }
+      .tech-steps { padding: 0 20px 4px 44px; color: var(--text); font-size: 14px; line-height: 1.7; display: flex; flex-direction: column; gap: 6px; }
+      .tech-source { padding: 10px 20px 20px 44px; color: var(--muted); font-size: 12px; font-style: italic; margin: 0; }
+      .tracker-stats { display: flex; gap: 14px; }
+      .stat { --accent: var(--turquoise); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 22px; display: flex; flex-direction: column; }
+      .stat-num { font-family: 'IBM Plex Mono', monospace; font-size: 26px; color: var(--accent); }
+      .stat-label { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+      .storage-warning { color: var(--sunflower); font-size: 13px; }
+      .week-card h2, .badges-card h2 { font-size: 16px; margin-bottom: 16px; }
+      .week-bars { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; height: 100px; }
+      .week-bar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; height: 100%; justify-content: flex-end; }
+      .week-bar-track { width: 100%; max-width: 26px; height: 70px; display: flex; align-items: flex-end; border-radius: 6px; overflow: hidden; background: var(--surface-alt); }
+      .week-bar-fill { width: 100%; border-radius: 6px 6px 0 0; transition: height 0.3s; }
+      .week-bar-label { color: var(--muted); font-size: 11px; font-family: 'IBM Plex Mono', monospace; }
+      .badge-row { display: flex; flex-wrap: wrap; gap: 10px; }
+      .badge { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
+      .badge.earned { background: linear-gradient(135deg, var(--coral), var(--sunflower)); color: #221A0F; border-color: transparent; font-weight: 600; }
+      .calendar-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; color: var(--muted); }
+      .calendar-nav button { color: var(--muted); padding: 4px; border-radius: 6px; }
+      .calendar-nav button:hover { color: var(--text); }
+      .weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
+      .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+      .day-cell { aspect-ratio: 1; border-radius: 9px; background: var(--surface-alt); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; }
+      .day-cell.empty { background: transparent; }
+      .day-cell:not(.empty):hover { transform: scale(1.08); }
+      .day-cell.is-today { box-shadow: 0 0 0 1.5px var(--sunflower) inset; }
+      .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+      .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+      .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+      .day-panel-backdrop { position: fixed; inset: 0; background: rgba(10,8,20,0.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 40; }
+      .day-panel { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+      .day-panel-head { display: flex; justify-content: space-between; align-items: center; }
+      .day-panel-head button { color: var(--muted); }
+      .note-label { font-size: 12.5px; color: var(--muted); }
+      .note-input { width: 100%; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 12px; color: var(--text); padding: 10px 12px; font-family: inherit; font-size: 13.5px; resize: vertical; }
+      .breathing-card, .ripple-card, .bubble-card { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+      .breathing-card h2, .ripple-card h2, .bubble-card h2 { font-size: 17px; align-self: flex-start; }
+      .pacer { width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle at 50% 45%, rgba(79,209,197,0.4), rgba(184,166,255,0.08)); border: 1.5px solid var(--turquoise); display: flex; align-items: center; justify-content: center; transform: scale(0.72); transition: transform 4s ease-in-out; }
+      .pacer-label { font-size: 13.5px; color: var(--text); font-family: 'IBM Plex Mono', monospace; }
+      .pacer.running.phase-inhale, .pacer.running.phase-hold1 { transform: scale(1); }
+      .pacer.running.phase-exhale, .pacer.running.phase-hold2 { transform: scale(0.72); }
+      .pacer-controls { display: flex; align-items: center; gap: 16px; }
+      .btn-primary { display: flex; align-items: center; gap: 8px; background: linear-gradient(135deg, var(--turquoise), var(--lavender)); color: #16142B; font-weight: 700; padding: 10px 20px; border-radius: 999px; font-size: 14px; }
+      .cycle-count { color: var(--muted); font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
+      .ripple-hint { color: var(--muted); font-size: 13px; align-self: flex-start; margin-top: -12px; }
+      .ripple-pool { width: 100%; height: 200px; border-radius: 16px; background: var(--surface-alt); position: relative; overflow: hidden; cursor: crosshair; }
+      .ripple { position: absolute; width: 12px; height: 12px; margin-left: -6px; margin-top: -6px; border-radius: 50%; background: var(--ripple-color); opacity: 0.55; animation: rippleOut 1.6s ease-out forwards; }
+      @keyframes rippleOut { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(14); opacity: 0; } }
+      .bubble-pool { width: 100%; height: 220px; border-radius: 16px; background: var(--surface-alt); position: relative; overflow: hidden; }
+      .bubble { position: absolute; bottom: -60px; border-radius: 50%; animation-name: floatUp; animation-timing-function: linear; box-shadow: 0 0 16px -4px rgba(255,255,255,0.2); transition: transform 0.15s; }
+      .bubble:hover { transform: scale(1.08); }
+      .bubble:active { transform: scale(0.85); opacity: 0; }
+      @keyframes floatUp { 0% { bottom: -60px; transform: translateX(0); } 50% { transform: translateX(14px); } 100% { bottom: 240px; transform: translateX(-10px); } }
+      .confetti-layer { position: fixed; top: 30%; left: 50%; pointer-events: none; z-index: 60; }
+      .confetti-piece { position: absolute; width: 8px; height: 8px; border-radius: 2px; opacity: 1; animation: confettiFly 1.2s ease-out forwards; }
+      @keyframes confettiFly { 0% { transform: translate(0,0) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(260deg); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .ring, .ripple, .pacer, .blob, .bubble, .confetti-piece { animation: none !important; transition: none !important; } }
+      @media (max-width: 780px) {
+        .shell { flex-direction: column; }
+        .sidebar { position: fixed; top: 56px; left: 0; right: 0; bottom: 0; transform: translateX(-100%); transition: transform 0.2s; z-index: 30; width: 100%; }
+        .sidebar.open { transform: translateX(0); }
+        .mobile-nav-toggle { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 20; width: 100%; background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px; font-size: 15px; color: var(--text); }
+        .content { padding: 24px 20px 60px; }
+        .hero h1 { font-size: 26px; }
+        .breathing-ring { display: none; }
+        .hero-blobs { opacity: 0.3; }
+      }
+    `}</style>
+  );
+        }
